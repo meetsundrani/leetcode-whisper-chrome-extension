@@ -228,9 +228,10 @@ function ChatBox({ context, visible }: ChatBoxProps) {
 
 const ContentPage: React.FC = () => {
   const [chatboxExpanded, setChatboxExpanded] = useState(false);
-  const [openApiKey, setOpenApiKey] = useState<string | null>(null); // State to hold the API key
+  const [openApiKey, setOpenApiKey] = useState<string | null>(null); // Holds the API key
+  const [showApiKeyPopup, setShowApiKeyPopup] = useState(false); // Controls popup visibility
 
-  // This effect fetches the API key and listens for changes
+  // Fetch API key on component mount
   useEffect(() => {
     const fetchApiKey = async () => {
       const storedKey = await chrome.storage.local.get('apiKey');
@@ -242,35 +243,65 @@ const ContentPage: React.FC = () => {
     // Listen for changes in chrome storage
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes.apiKey) {
-        // When the 'apiKey' changes, update the state
-        setOpenApiKey(changes.apiKey.newValue || null);
+        setOpenApiKey(changes.apiKey.newValue || null); // Update state when the API key changes
       }
     });
 
-    // Cleanup listener when the component is unmounted
+    // Cleanup listener
     return () => {
       chrome.storage.onChanged.removeListener(() => {});
     };
   }, []);
 
-  const metaDescriptionEl = document.querySelector('meta[name=description]');
-  const problemStatement = metaDescriptionEl?.getAttribute('content') || ''; // Get the problem statement
-
-  if (!openApiKey) {
-    // If no API key, render nothing or do not display the button and ChatBox
-    return null;
-  }
+  const handleButtonClick = () => {
+    if (!openApiKey) {
+      setShowApiKeyPopup(true); // Show popup if no API key
+    } else {
+      setChatboxExpanded(!chatboxExpanded); // Toggle chatbox
+    }
+  };
 
   return (
     <div className="__chat-container dark z-50">
-      {/* Conditionally render the ChatBox and Ask AI button only if the API key is available */}
-      <ChatBox visible={chatboxExpanded} context={{ problemStatement }} />
+      {/* ChatBox */}
+      <ChatBox visible={chatboxExpanded} context={{ problemStatement: 'Enter your problem statement here' }} />
+
+      {/* Ask AI Button */}
       <div className="flex justify-end">
-        <Button onClick={() => setChatboxExpanded(!chatboxExpanded)}>
+        <Button onClick={handleButtonClick}>
           <Bot />
           Ask AI
         </Button>
       </div>
+
+      {/* API Key Popup */}
+      {showApiKeyPopup && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-[#121627] p-6 rounded-md shadow-lg max-w-md text-center">
+            <h2 className="text-xl font-bold mb-4">API Key Required</h2>
+            <p className="text-white mb-6">
+              To use the AI chat feature, you need to provide your OpenAI API key. Please click on LeetCode Whisper icon above and add your API key.
+            </p>
+            <div className="flex justify-center gap-4">
+              <Button className="dark" onClick={() => setShowApiKeyPopup(false)}>
+                Ok
+              </Button>
+              
+            </div>
+            <div className='mt-2'>
+            <a
+                href="https://platform.openai.com/api-keys"
+                className="text-[#86ccee]"
+                target="_blank"
+              >
+                {' '}
+               Create / Manage Openai Api Key?
+              </a>
+            </div>
+            
+          </div>
+        </div>
+      )}
     </div>
   );
 };
