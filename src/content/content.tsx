@@ -82,7 +82,7 @@ function ChatBox({ context, visible }: ChatBoxProps) {
       .replace('{{user_code}}', extractedCode);
 
     const apiResponse = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'chatgpt-4o-latest',
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPromptModified },
