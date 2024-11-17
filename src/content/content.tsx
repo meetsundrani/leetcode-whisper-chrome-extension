@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bot, ClipboardCopy, Send, SendHorizontal } from 'lucide-react';
 import OpenAI from 'openai';
@@ -82,7 +82,7 @@ function ChatBox({ context, visible }: ChatBoxProps) {
       .replace('{{user_code}}', extractedCode);
 
     const apiResponse = await openai.chat.completions.create({
-      model: 'chatgpt-4o-latest',
+      model: 'gpt-4o-mini',
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPromptModified },
@@ -227,14 +227,43 @@ function ChatBox({ context, visible }: ChatBoxProps) {
 }
 
 const ContentPage: React.FC = () => {
-  const [chatboxExpanded, setChatboxExpanded] = React.useState(false)
+  const [chatboxExpanded, setChatboxExpanded] = useState(false);
+  const [openApiKey, setOpenApiKey] = useState<string | null>(null); // State to hold the API key
 
-  const metaDescriptionEl = document.querySelector('meta[name=description]')
+  // This effect fetches the API key and listens for changes
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      const storedKey = await chrome.storage.local.get('apiKey');
+      setOpenApiKey(storedKey.apiKey || null); // Set the API key if it exists
+    };
 
-  const problemStatement = metaDescriptionEl?.getAttribute('content') as string
+    fetchApiKey();
+
+    // Listen for changes in chrome storage
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.apiKey) {
+        // When the 'apiKey' changes, update the state
+        setOpenApiKey(changes.apiKey.newValue || null);
+      }
+    });
+
+    // Cleanup listener when the component is unmounted
+    return () => {
+      chrome.storage.onChanged.removeListener(() => {});
+    };
+  }, []);
+
+  const metaDescriptionEl = document.querySelector('meta[name=description]');
+  const problemStatement = metaDescriptionEl?.getAttribute('content') || ''; // Get the problem statement
+
+  if (!openApiKey) {
+    // If no API key, render nothing or do not display the button and ChatBox
+    return null;
+  }
 
   return (
     <div className="__chat-container dark z-50">
+      {/* Conditionally render the ChatBox and Ask AI button only if the API key is available */}
       <ChatBox visible={chatboxExpanded} context={{ problemStatement }} />
       <div className="flex justify-end">
         <Button onClick={() => setChatboxExpanded(!chatboxExpanded)}>
@@ -243,7 +272,7 @@ const ContentPage: React.FC = () => {
         </Button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ContentPage
+export default ContentPage;
